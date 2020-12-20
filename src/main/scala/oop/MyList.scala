@@ -1,32 +1,61 @@
 package oop
 
-abstract class MyList {
-  def head: Int
-  def tail: MyList
+abstract class MyList[+A] {
+  def head: A
+  def tail: MyList[A]
   def isEmpty: Boolean
-  def add(element: Int): MyList
+  def add[B >: A](element: B): MyList[B]
   def printElements: String
+  def map[B](transformer: MyTransformer[A, B]): MyList[B]
+  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+  def filter(predicate: MyPredicate[A]): MyList[A]
+  def ++[B >: A](list: MyList[B]): MyList[B]
   override def toString: String = "[" + printElements + "]"
 }
 
-object Empty extends MyList {
-  override def head: Int = throw new NoSuchElementException
-  override def tail: MyList = throw new NoSuchElementException
-  override def isEmpty: Boolean = true
-  override def add(element: Int): MyList = new Cons(element, Empty)
-  override def printElements: String = ""
+object Empty extends MyList[Nothing] {
+  def head: Nothing = throw new NoSuchElementException
+  def tail: MyList[Nothing] = throw new NoSuchElementException
+  def isEmpty: Boolean = true
+  def add[B >: Nothing](element: B): MyList[B] = new Cons(element, Empty)
+  def printElements: String = ""
+  def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
+  def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+  def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+  def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
 }
 
-class Cons(h: Int, t: MyList) extends MyList {
-  override def head: Int = h
-  override def tail: MyList = t
-  override def isEmpty: Boolean = false
-  override def add(element: Int): MyList = new Cons(element, this)
-  override def printElements: String = {
+class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+  def head: A = h
+  def tail: MyList[A] = t
+  def isEmpty: Boolean = false
+  def add[B >: A](element: B): MyList[B] = new Cons(element, this)
+  def printElements: String = {
     if (t.isEmpty) {
       h.toString
     } else {
       h + ", " + t.printElements
     }
   }
+  def ++[B >: A](list: MyList[B]): MyList[B] = new Cons(h, t ++ list)
+  def filter(predicate: MyPredicate[A]): MyList[A] = {
+    if (predicate.test(h)) {
+      new Cons(h, t.filter(predicate))
+    } else {
+      t.filter(predicate)
+    }
+  }
+  def map[B](transformer: MyTransformer[A, B]): MyList[B] =
+    new Cons(transformer.transform(h), t.map(transformer))
+  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
+    transformer.transform(h) ++ t.flatMap(transformer)
+  }
+}
+
+trait MyPredicate[-T] {
+  def test(elem: T): Boolean
+}
+
+trait MyTransformer[-A, B] {
+  def transform(elem: A): B
 }
